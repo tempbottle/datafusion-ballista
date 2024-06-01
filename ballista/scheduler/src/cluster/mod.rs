@@ -1095,6 +1095,7 @@ mod test {
                 },
                 partition_values: vec![],
                 range: None,
+                statistics: None,
                 extensions: None,
             }]);
         }

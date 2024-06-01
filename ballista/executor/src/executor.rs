@@ -209,9 +209,8 @@ mod test {
     use crate::execution_engine::DefaultQueryStageExec;
     use ballista_core::serde::scheduler::PartitionId;
     use datafusion::error::{DataFusionError, Result};
-    use datafusion::physical_expr::PhysicalSortExpr;
     use datafusion::physical_plan::{
-        DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, RecordBatchStream,
+        DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties, RecordBatchStream,
         SendableRecordBatchStream, Statistics,
     };
     use datafusion::prelude::SessionContext;
@@ -270,14 +269,6 @@ mod test {
             Arc::new(Schema::empty())
         }
 
-        fn output_partitioning(&self) -> Partitioning {
-            Partitioning::UnknownPartitioning(1)
-        }
-
-        fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-            None
-        }
-
         fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
             vec![]
         }
@@ -299,6 +290,10 @@ mod test {
 
         fn statistics(&self) -> Result<Statistics> {
             Ok(Statistics::new_unknown(&self.schema()))
+        }
+
+        fn properties(&self) -> &PlanProperties {
+            todo!()
         }
     }
 

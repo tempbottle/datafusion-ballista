@@ -494,6 +494,7 @@ order by
         assert_eq!(
             2,
             stages[0].children()[0]
+                .properties()
                 .output_partitioning()
                 .partition_count()
         );
@@ -509,6 +510,7 @@ order by
         assert_eq!(
             1,
             stages[1].children()[0]
+                .properties()
                 .output_partitioning()
                 .partition_count()
         );
@@ -522,7 +524,10 @@ order by
 
         // join and partial hash aggregate
         let input = stages[2].children()[0].clone();
-        assert_eq!(2, input.output_partitioning().partition_count());
+        assert_eq!(
+            2,
+            input.properties().output_partitioning().partition_count()
+        );
         assert_eq!(
             2,
             stages[2]
@@ -560,6 +565,7 @@ order by
         assert_eq!(
             2,
             stages[3].children()[0]
+                .properties()
                 .output_partitioning()
                 .partition_count()
         );
@@ -569,6 +575,7 @@ order by
         assert_eq!(
             1,
             stages[4].children()[0]
+                .properties()
                 .output_partitioning()
                 .partition_count()
         );
