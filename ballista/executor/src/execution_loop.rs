@@ -31,6 +31,7 @@ use crate::{as_task_status, TaskExecutionTimes};
 use ballista_core::error::BallistaError;
 use ballista_core::serde::scheduler::{ExecutorSpecification, PartitionId};
 use ballista_core::serde::BallistaCodec;
+use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::execution::context::TaskContext;
 use datafusion_proto::logical_plan::AsLogicalPlan;
 use datafusion_proto::physical_plan::AsExecutionPlan;
@@ -44,7 +45,6 @@ use std::ops::Deref;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{sync::Arc, time::Duration};
-use datafusion::common::tree_node::{Transformed, TreeNode};
 use tonic::transport::Channel;
 
 pub async fn poll_loop<T: 'static + AsLogicalPlan, U: 'static + AsExecutionPlan>(
@@ -214,7 +214,7 @@ async fn run_received_task<T: 'static + AsLogicalPlan, U: 'static + AsExecutionP
             )
         })?;
 
-    let plan = plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
+    let plan = plan.transform(&|plan: Arc<dyn ExecutionPlan>| {
         let children = plan.children().clone();
         plan.with_new_children(children).map(Transformed::yes)
     })?;

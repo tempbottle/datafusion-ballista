@@ -49,7 +49,10 @@ use datafusion::physical_plan::metrics::{
     self, ExecutionPlanMetricsSet, MetricBuilder, MetricsSet,
 };
 
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
+use datafusion::physical_plan::{
+    DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties,
+    Partitioning, PlanProperties, SendableRecordBatchStream, Statistics,
+};
 use futures::{StreamExt, TryFutureExt, TryStreamExt};
 
 use datafusion::arrow::error::ArrowError;
@@ -114,7 +117,6 @@ impl ShuffleWriteMetrics {
             output_rows,
         }
     }
-
 }
 
 impl ShuffleWriterExec {
@@ -129,10 +131,11 @@ impl ShuffleWriterExec {
         // If [`shuffle_output_partitioning`] is none, then there's no need to do repartitioning.
         // Therefore, the partition is the same as its input plan's.
         let n_partitions = match shuffle_output_partitioning.clone() {
-            None => { plan.output_partitioning().partition_count()}
-            Some(sop) => {sop.partition_count()}
+            None => plan.output_partitioning().partition_count(),
+            Some(sop) => sop.partition_count(),
         };
-        let cache = Self::compute_properties(plan.schema().clone().into(), None, n_partitions);
+        let cache =
+            Self::compute_properties(plan.schema().clone().into(), None, n_partitions);
         Ok(Self {
             job_id,
             stage_id,

@@ -19,13 +19,13 @@ use async_trait::async_trait;
 use ballista_core::execution_plans::ShuffleWriterExec;
 use ballista_core::serde::protobuf::ShuffleWritePartition;
 use ballista_core::utils;
+use datafusion::common::tree_node::Transformed;
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::context::TaskContext;
 use datafusion::physical_plan::metrics::MetricsSet;
 use datafusion::physical_plan::ExecutionPlan;
 use std::fmt::Debug;
 use std::sync::Arc;
-use datafusion::common::tree_node::Transformed;
 
 /// Execution engine extension point
 

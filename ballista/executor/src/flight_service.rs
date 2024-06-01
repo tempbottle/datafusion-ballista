@@ -30,7 +30,11 @@ use ballista_core::serde::decode_protobuf;
 use ballista_core::serde::scheduler::Action as BallistaAction;
 
 use arrow::ipc::writer::IpcWriteOptions;
-use arrow_flight::{flight_service_server::FlightService, Action, ActionType, Criteria, Empty, FlightData, FlightDescriptor, FlightInfo, HandshakeRequest, HandshakeResponse, PutResult, SchemaResult, Ticket, PollInfo};
+use arrow_flight::{
+    flight_service_server::FlightService, Action, ActionType, Criteria, Empty,
+    FlightData, FlightDescriptor, FlightInfo, HandshakeRequest, HandshakeResponse,
+    PollInfo, PutResult, SchemaResult, Ticket,
+};
 use datafusion::arrow::{error::ArrowError, record_batch::RecordBatch};
 use futures::{Stream, StreamExt, TryStreamExt};
 use log::{debug, info};
@@ -200,7 +204,10 @@ impl FlightService for BallistaFlightService {
         Err(Status::unimplemented("do_exchange"))
     }
 
-    async fn poll_flight_info(&self, _request: Request<FlightDescriptor>) -> Result<Response<PollInfo>, Status> {
+    async fn poll_flight_info(
+        &self,
+        _request: Request<FlightDescriptor>,
+    ) -> Result<Response<PollInfo>, Status> {
         Err(Status::unimplemented("poll_flight_info"))
     }
 }

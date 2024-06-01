@@ -22,7 +22,10 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::context::TaskContext;
 use datafusion::physical_expr::EquivalenceProperties;
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
+use datafusion::physical_plan::{
+    DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning,
+    PlanProperties, SendableRecordBatchStream, Statistics,
+};
 
 /// UnresolvedShuffleExec represents a dependency on the results of a ShuffleWriterExec node which hasn't computed yet.
 ///
@@ -48,7 +51,8 @@ impl UnresolvedShuffleExec {
         schema: SchemaRef,
         output_partition_count: usize,
     ) -> Self {
-        let cache = Self::compute_properties(schema.clone(), None, output_partition_count);
+        let cache =
+            Self::compute_properties(schema.clone(), None, output_partition_count);
         Self {
             stage_id,
             schema,

@@ -25,9 +25,12 @@ use std::{any::Any, pin::Pin};
 use datafusion::arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use datafusion::error::DataFusionError;
 use datafusion::execution::context::TaskContext;
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
-use datafusion::{error::Result, physical_plan::RecordBatchStream};
 use datafusion::physical_expr::EquivalenceProperties;
+use datafusion::physical_plan::{
+    DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties,
+    Partitioning, PlanProperties, SendableRecordBatchStream, Statistics,
+};
+use datafusion::{error::Result, physical_plan::RecordBatchStream};
 use futures::stream::SelectAll;
 use futures::Stream;
 

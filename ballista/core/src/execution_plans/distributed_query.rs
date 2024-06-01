@@ -30,8 +30,12 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::context::TaskContext;
 use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_expr::EquivalenceProperties;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
+use datafusion::physical_plan::{
+    DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning,
+    PlanProperties, SendableRecordBatchStream, Statistics,
+};
 use datafusion_proto::logical_plan::{
     AsLogicalPlan, DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
@@ -42,7 +46,6 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
-use datafusion::physical_expr::EquivalenceProperties;
 
 /// This operator sends a logical plan to a Ballista scheduler for execution and
 /// polls the scheduler until the query is complete and then fetches the resulting
@@ -72,7 +75,8 @@ impl<T: 'static + AsLogicalPlan> DistributedQueryExec<T> {
         plan: LogicalPlan,
         session_id: String,
     ) -> Self {
-        let cache  = Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
+        let cache =
+            Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
         Self {
             scheduler_url,
             config,
@@ -109,7 +113,8 @@ impl<T: 'static + AsLogicalPlan> DistributedQueryExec<T> {
         extension_codec: Arc<dyn LogicalExtensionCodec>,
         session_id: String,
     ) -> Self {
-        let cache  = Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
+        let cache =
+            Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
 
         Self {
             scheduler_url,
@@ -130,7 +135,8 @@ impl<T: 'static + AsLogicalPlan> DistributedQueryExec<T> {
         plan_repr: PhantomData<T>,
         session_id: String,
     ) -> Self {
-        let cache  = Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
+        let cache =
+            Self::compute_properties(plan.schema().as_ref().clone().into(), None, 1);
 
         Self {
             scheduler_url,
@@ -183,7 +189,8 @@ impl<T: 'static + AsLogicalPlan> ExecutionPlan for DistributedQueryExec<T> {
         self: Arc<Self>,
         _children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> datafusion::error::Result<Arc<dyn ExecutionPlan>> {
-        let cache  = Self::compute_properties(self.plan.schema().as_ref().clone().into(), None, 1);
+        let cache =
+            Self::compute_properties(self.plan.schema().as_ref().clone().into(), None, 1);
         Ok(Arc::new(DistributedQueryExec {
             scheduler_url: self.scheduler_url.clone(),
             config: self.config.clone(),

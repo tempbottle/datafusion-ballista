@@ -60,9 +60,9 @@ impl Command {
                 let rb = all_commands_info();
                 let schema = rb.schema();
                 print_options
-                    .print_batches(schema,&[all_commands_info()], now)
+                    .print_batches(schema, &[all_commands_info()], now)
                     .map_err(BallistaError::DataFusionError)
-            },
+            }
             Self::ListTables => {
                 let df = ctx.sql("SHOW TABLES").await?;
                 let batches = df.collect().await?;

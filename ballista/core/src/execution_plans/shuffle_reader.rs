@@ -38,7 +38,11 @@ use datafusion::common::runtime::SpawnedTask;
 
 use datafusion::error::Result;
 use datafusion::physical_plan::metrics::{ExecutionPlanMetricsSet, MetricsSet};
-use datafusion::physical_plan::{ColumnStatistics, DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning, PlanProperties, RecordBatchStream, SendableRecordBatchStream, Statistics};
+use datafusion::physical_plan::{
+    ColumnStatistics, DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan,
+    Partitioning, PlanProperties, RecordBatchStream, SendableRecordBatchStream,
+    Statistics,
+};
 use futures::{Stream, StreamExt, TryStreamExt};
 
 use crate::error::BallistaError;

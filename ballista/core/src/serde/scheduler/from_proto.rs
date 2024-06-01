@@ -324,7 +324,7 @@ pub fn get_task_definition<T: 'static + AsLogicalPlan, U: 'static + AsExecutionP
     let launch_time = task.launch_time;
     let task_id = task.task_id as usize;
     let session_id = task.session_id;
-    let plan = plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
+    let plan = plan.transform(&|plan: Arc<dyn ExecutionPlan>| {
         let children = plan.children().clone();
         plan.with_new_children(children).map(Transformed::yes)
     })?;
@@ -420,7 +420,7 @@ pub fn get_task_definition_vec<
 fn reset_metrics_for_execution_plan(
     plan: Arc<dyn ExecutionPlan>,
 ) -> Result<Transformed<Arc<dyn ExecutionPlan>>, BallistaError> {
-    plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
+    plan.transform(&|plan: Arc<dyn ExecutionPlan>| {
         let children = plan.children().clone();
         plan.with_new_children(children).map(Transformed::yes)
     })

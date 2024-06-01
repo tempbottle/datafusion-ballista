@@ -688,7 +688,7 @@ pub(crate) fn get_scan_files(
     plan: Arc<dyn ExecutionPlan>,
 ) -> std::result::Result<Vec<Vec<Vec<PartitionedFile>>>, DataFusionError> {
     let mut collector: Vec<Vec<Vec<PartitionedFile>>> = vec![];
-    plan.apply(&mut |plan:&Arc<dyn ExecutionPlan>| {
+    plan.apply(&mut |plan: &Arc<dyn ExecutionPlan>| {
         let plan_any = plan.as_any();
         let file_groups =
             if let Some(parquet_exec) = plan_any.downcast_ref::<ParquetExec>() {

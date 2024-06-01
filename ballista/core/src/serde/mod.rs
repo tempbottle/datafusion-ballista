@@ -33,12 +33,12 @@ use datafusion_proto::{
     physical_plan::{AsExecutionPlan, PhysicalExtensionCodec},
 };
 
+use datafusion_proto::physical_plan::to_proto::serialize_physical_expr;
 use prost::Message;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::{convert::TryInto, io::Cursor};
-use datafusion_proto::physical_plan::to_proto::serialize_physical_expr;
 
 use crate::execution_plans::{
     ShuffleReaderExec, ShuffleWriterExec, UnresolvedShuffleExec,
@@ -146,7 +146,7 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
                     shuffle_writer.output_partitioning.as_ref(),
                     registry,
                     input.schema().as_ref(),
-                    self
+                    self,
                 )?;
 
                 Ok(Arc::new(ShuffleWriterExec::try_new(
@@ -183,9 +183,9 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
             PhysicalPlanType::UnresolvedShuffle(unresolved_shuffle) => {
                 let schema = Arc::new(convert_required!(unresolved_shuffle.schema)?);
                 Ok(Arc::new(UnresolvedShuffleExec::new(
-                     unresolved_shuffle.stage_id as usize,
-                     schema,
-                     unresolved_shuffle.output_partition_count as usize,
+                    unresolved_shuffle.stage_id as usize,
+                    schema,
+                    unresolved_shuffle.output_partition_count as usize,
                 )))
             }
         }
@@ -206,7 +206,7 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
                             .iter()
                             .map(|expr| {
                                 let expr1 = expr.clone();
-                                serialize_physical_expr(expr1.into(),self)
+                                serialize_physical_expr(expr1.into(), self)
                             })
                             .collect::<Result<Vec<_>, DataFusionError>>()?,
                         partition_count: *partition_count as u64,

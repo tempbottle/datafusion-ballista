@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use std::collections::HashSet;
 use arrow_flight::flight_descriptor::DescriptorType;
 use arrow_flight::flight_service_server::FlightService;
 use arrow_flight::sql::server::{FlightSqlService, PeekableFlightDataStream};
@@ -39,6 +38,7 @@ use arrow_flight::{
 use base64::Engine;
 use futures::Stream;
 use log::{debug, error, warn};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -66,8 +66,8 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::ipc::writer::{IpcDataGenerator, IpcWriteOptions};
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::common::{DFSchemaRef};
-use datafusion::logical_expr::{LogicalPlan};
+use datafusion::common::DFSchemaRef;
+use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;
 use datafusion_proto::protobuf::{LogicalPlanNode, PhysicalPlanNode};
 use prost::Message;
@@ -106,10 +106,8 @@ impl FlightSqlServiceImpl {
         let cols = cols.collect().await.unwrap();
         let rb = cols.get(0).unwrap();
         let cols: Vec<TableName> = serde_arrow::from_record_batch(&rb).unwrap();
-        cols.iter().map(|s|s.clone().table_name.unwrap()).collect()
+        cols.iter().map(|s| s.clone().table_name.unwrap()).collect()
     }
-
-
 
     #[allow(deprecated)]
     fn tables(&self, ctx: Arc<SessionContext>) -> Result<RecordBatch, ArrowError> {
