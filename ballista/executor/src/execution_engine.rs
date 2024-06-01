@@ -25,6 +25,7 @@ use datafusion::physical_plan::metrics::MetricsSet;
 use datafusion::physical_plan::ExecutionPlan;
 use std::fmt::Debug;
 use std::sync::Arc;
+use datafusion::common::tree_node::Transformed;
 
 /// Execution engine extension point
 
@@ -33,7 +34,7 @@ pub trait ExecutionEngine: Sync + Send {
         &self,
         job_id: String,
         stage_id: usize,
-        plan: Arc<dyn ExecutionPlan>,
+        plan: Arc<Transformed<Arc<dyn ExecutionPlan>>>,
         work_dir: &str,
     ) -> Result<Arc<dyn QueryStageExecutor>>;
 }
@@ -60,18 +61,18 @@ impl ExecutionEngine for DefaultExecutionEngine {
         &self,
         job_id: String,
         stage_id: usize,
-        plan: Arc<dyn ExecutionPlan>,
+        plan: Arc<Transformed<Arc<dyn ExecutionPlan>>>,
         work_dir: &str,
     ) -> Result<Arc<dyn QueryStageExecutor>> {
         // the query plan created by the scheduler always starts with a ShuffleWriterExec
         let exec = if let Some(shuffle_writer) =
-            plan.as_any().downcast_ref::<ShuffleWriterExec>()
+            plan.data.as_any().downcast_ref::<ShuffleWriterExec>()
         {
             // recreate the shuffle writer with the correct working directory
             ShuffleWriterExec::try_new(
                 job_id,
                 stage_id,
-                plan.children()[0].clone(),
+                plan.data.children()[0].clone(),
                 work_dir.to_string(),
                 shuffle_writer.shuffle_output_partitioning().cloned(),
             )

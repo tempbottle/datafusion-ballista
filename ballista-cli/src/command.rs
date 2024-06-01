@@ -56,21 +56,27 @@ impl Command {
     ) -> Result<()> {
         let now = Instant::now();
         match self {
-            Self::Help => print_options
-                .print_batches(&[all_commands_info()], now)
-                .map_err(BallistaError::DataFusionError),
+            Self::Help => {
+                let rb = all_commands_info();
+                let schema = rb.schema();
+                print_options
+                    .print_batches(schema,&[all_commands_info()], now)
+                    .map_err(BallistaError::DataFusionError)
+            },
             Self::ListTables => {
                 let df = ctx.sql("SHOW TABLES").await?;
                 let batches = df.collect().await?;
+                let schema = batches.get(0).unwrap().schema();
                 print_options
-                    .print_batches(&batches, now)
+                    .print_batches(schema, &batches, now)
                     .map_err(BallistaError::DataFusionError)
             }
             Self::DescribeTable(name) => {
                 let df = ctx.sql(&format!("SHOW COLUMNS FROM {name}")).await?;
                 let batches = df.collect().await?;
+                let schema = batches.get(0).unwrap().schema();
                 print_options
-                    .print_batches(&batches, now)
+                    .print_batches(schema, &batches, now)
                     .map_err(BallistaError::DataFusionError)
             }
             Self::QuietMode(quiet) => {

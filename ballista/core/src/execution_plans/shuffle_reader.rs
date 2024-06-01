@@ -34,26 +34,22 @@ use crate::serde::scheduler::{PartitionLocation, PartitionStats};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::common::runtime::SpawnedTask;
 
 use datafusion::error::Result;
-use datafusion::physical_plan::expressions::PhysicalSortExpr;
 use datafusion::physical_plan::metrics::{ExecutionPlanMetricsSet, MetricsSet};
-use datafusion::physical_plan::{
-    ColumnStatistics, DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning,
-    RecordBatchStream, SendableRecordBatchStream, Statistics,
-};
+use datafusion::physical_plan::{ColumnStatistics, DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning, PlanProperties, RecordBatchStream, SendableRecordBatchStream, Statistics};
 use futures::{Stream, StreamExt, TryStreamExt};
 
 use crate::error::BallistaError;
 use datafusion::execution::context::TaskContext;
-use datafusion::physical_plan::common::AbortOnDropMany;
+use datafusion::physical_expr::EquivalenceProperties;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use itertools::Itertools;
 use log::{error, info};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use tokio::sync::{mpsc, Semaphore};
-use tokio::task::JoinHandle;
 use tokio_stream::wrappers::ReceiverStream;
 
 /// ShuffleReaderExec reads partitions that have already been materialized by a ShuffleWriterExec
@@ -67,6 +63,7 @@ pub struct ShuffleReaderExec {
     pub partition: Vec<Vec<PartitionLocation>>,
     /// Execution metrics
     metrics: ExecutionPlanMetricsSet,
+    cache: PlanProperties,
 }
 
 impl ShuffleReaderExec {
@@ -76,12 +73,32 @@ impl ShuffleReaderExec {
         partition: Vec<Vec<PartitionLocation>>,
         schema: SchemaRef,
     ) -> Result<Self> {
+        let cache = Self::compute_properties(schema.clone(), None, partition.len());
         Ok(Self {
             stage_id,
             schema,
             partition,
             metrics: ExecutionPlanMetricsSet::new(),
+            cache,
         })
+    }
+
+    fn compute_properties(
+        schema: SchemaRef,
+        batch_produce: Option<usize>,
+        n_partitions: usize,
+    ) -> PlanProperties {
+        let eq_properties = EquivalenceProperties::new(schema);
+        let mode = if batch_produce.is_none() {
+            ExecutionMode::Unbounded
+        } else {
+            ExecutionMode::Bounded
+        };
+        PlanProperties::new(
+            eq_properties,
+            Partitioning::UnknownPartitioning(n_partitions),
+            mode,
+        )
     }
 }
 
@@ -106,16 +123,6 @@ impl ExecutionPlan for ShuffleReaderExec {
 
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
-    }
-
-    fn output_partitioning(&self) -> Partitioning {
-        // TODO partitioning may be known and could be populated here
-        // see https://github.com/apache/arrow-datafusion/issues/758
-        Partitioning::UnknownPartitioning(self.partition.len())
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
     }
 
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
@@ -183,6 +190,10 @@ impl ExecutionPlan for ShuffleReaderExec {
                 .map(|loc| loc.partition_stats),
         ))
     }
+
+    fn properties(&self) -> &PlanProperties {
+        &self.cache
+    }
 }
 
 fn stats_for_partitions(
@@ -244,7 +255,7 @@ struct AbortableReceiverStream {
     inner: ReceiverStream<result::Result<SendableRecordBatchStream, BallistaError>>,
 
     #[allow(dead_code)]
-    drop_helper: AbortOnDropMany<()>,
+    drop_helper: Vec<SpawnedTask<()>>,
 }
 
 impl AbortableReceiverStream {
@@ -253,12 +264,12 @@ impl AbortableReceiverStream {
         rx: tokio::sync::mpsc::Receiver<
             result::Result<SendableRecordBatchStream, BallistaError>,
         >,
-        join_handles: Vec<JoinHandle<()>>,
+        tasks: Vec<SpawnedTask<()>>,
     ) -> AbortableReceiverStream {
         let inner = ReceiverStream::new(rx);
         Self {
             inner,
-            drop_helper: AbortOnDropMany(join_handles),
+            drop_helper: tasks,
         }
     }
 }
@@ -282,7 +293,7 @@ fn send_fetch_partitions(
 ) -> AbortableReceiverStream {
     let (response_sender, response_receiver) = mpsc::channel(max_request_num);
     let semaphore = Arc::new(Semaphore::new(max_request_num));
-    let mut join_handles = vec![];
+    let mut spawned_tasks = vec![];
     let (local_locations, remote_locations): (Vec<_>, Vec<_>) = partition_locations
         .into_iter()
         .partition(check_is_local_location);
@@ -295,7 +306,7 @@ fn send_fetch_partitions(
 
     // keep local shuffle files reading in serial order for memory control.
     let response_sender_c = response_sender.clone();
-    let join_handle = tokio::spawn(async move {
+    let task = SpawnedTask::spawn(async move {
         for p in local_locations {
             let r = PartitionReaderEnum::Local.fetch_partition(&p).await;
             if let Err(e) = response_sender_c.send(r).await {
@@ -303,12 +314,12 @@ fn send_fetch_partitions(
             }
         }
     });
-    join_handles.push(join_handle);
+    spawned_tasks.push(task);
 
     for p in remote_locations.into_iter() {
         let semaphore = semaphore.clone();
         let response_sender = response_sender.clone();
-        let join_handle = tokio::spawn(async move {
+        let task = SpawnedTask::spawn(async move {
             // Block if exceeds max request number
             let permit = semaphore.acquire_owned().await.unwrap();
             let r = PartitionReaderEnum::FlightRemote.fetch_partition(&p).await;
@@ -319,10 +330,10 @@ fn send_fetch_partitions(
             // Increase semaphore by dropping existing permits.
             drop(permit);
         });
-        join_handles.push(join_handle);
+        spawned_tasks.push(task);
     }
 
-    AbortableReceiverStream::create(response_receiver, join_handles)
+    AbortableReceiverStream::create(response_receiver, spawned_tasks)
 }
 
 fn check_is_local_location(location: &PartitionLocation) -> bool {

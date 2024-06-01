@@ -165,7 +165,8 @@ async fn exec_and_print(
     let now = Instant::now();
     let df = ctx.sql(&sql).await?;
     let results = df.collect().await?;
-    print_options.print_batches(&results, now)?;
+    let schema = results.get(0).unwrap().schema();
+    print_options.print_batches(schema, &results, now)?;
 
     Ok(())
 }

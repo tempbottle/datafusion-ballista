@@ -133,7 +133,7 @@ impl DistributedPlanner {
         } else if let Some(repart) =
             execution_plan.as_any().downcast_ref::<RepartitionExec>()
         {
-            match repart.output_partitioning() {
+            match repart.partitioning() {
                 Partitioning::Hash(_, _) => {
                     let shuffle_writer = create_shuffle_writer(
                         job_id,
@@ -177,7 +177,7 @@ fn create_unresolved_shuffle(
     Arc::new(UnresolvedShuffleExec::new(
         shuffle_writer.stage_id(),
         shuffle_writer.schema(),
-        shuffle_writer.output_partitioning().partition_count(),
+        shuffle_writer.shuffle_output_partitioning().iter().len(),
     ))
 }
 
@@ -263,7 +263,7 @@ pub fn rollback_resolved_shuffles(
     for child in stage.children() {
         if let Some(shuffle_reader) = child.as_any().downcast_ref::<ShuffleReaderExec>() {
             let output_partition_count =
-                shuffle_reader.output_partitioning().partition_count();
+                shuffle_reader.partition.len();
             let stage_id = shuffle_reader.stage_id;
 
             let unresolved_shuffle = Arc::new(UnresolvedShuffleExec::new(

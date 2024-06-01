@@ -22,7 +22,6 @@
 
 use datafusion::arrow::ipc::writer::IpcWriteOptions;
 use datafusion::arrow::ipc::CompressionType;
-use datafusion::physical_plan::expressions::PhysicalSortExpr;
 
 use datafusion::arrow::ipc::writer::StreamWriter;
 use std::any::Any;
@@ -50,14 +49,12 @@ use datafusion::physical_plan::metrics::{
     self, ExecutionPlanMetricsSet, MetricBuilder, MetricsSet,
 };
 
-use datafusion::physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, SendableRecordBatchStream,
-    Statistics,
-};
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
 use futures::{StreamExt, TryFutureExt, TryStreamExt};
 
 use datafusion::arrow::error::ArrowError;
 use datafusion::execution::context::TaskContext;
+use datafusion::physical_expr::EquivalenceProperties;
 use datafusion::physical_plan::repartition::BatchPartitioner;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use log::{debug, info};
@@ -81,6 +78,7 @@ pub struct ShuffleWriterExec {
     shuffle_output_partitioning: Option<Partitioning>,
     /// Execution metrics
     metrics: ExecutionPlanMetricsSet,
+    cache: PlanProperties,
 }
 
 pub struct WriteTracker {
@@ -116,6 +114,7 @@ impl ShuffleWriteMetrics {
             output_rows,
         }
     }
+
 }
 
 impl ShuffleWriterExec {
@@ -127,6 +126,13 @@ impl ShuffleWriterExec {
         work_dir: String,
         shuffle_output_partitioning: Option<Partitioning>,
     ) -> Result<Self> {
+        // If [`shuffle_output_partitioning`] is none, then there's no need to do repartitioning.
+        // Therefore, the partition is the same as its input plan's.
+        let n_partitions = match shuffle_output_partitioning.clone() {
+            None => { plan.output_partitioning().partition_count()}
+            Some(sop) => {sop.partition_count()}
+        };
+        let cache = Self::compute_properties(plan.schema().clone().into(), None, n_partitions);
         Ok(Self {
             job_id,
             stage_id,
@@ -134,7 +140,26 @@ impl ShuffleWriterExec {
             work_dir,
             shuffle_output_partitioning,
             metrics: ExecutionPlanMetricsSet::new(),
+            cache,
         })
+    }
+
+    fn compute_properties(
+        schema: SchemaRef,
+        batch_produce: Option<usize>,
+        n_partitions: usize,
+    ) -> PlanProperties {
+        let eq_properties = EquivalenceProperties::new(schema);
+        let mode = if batch_produce.is_none() {
+            ExecutionMode::Unbounded
+        } else {
+            ExecutionMode::Bounded
+        };
+        PlanProperties::new(
+            eq_properties,
+            Partitioning::UnknownPartitioning(n_partitions),
+            mode,
+        )
     }
 
     /// Get the Job ID for this query stage
@@ -349,16 +374,8 @@ impl ExecutionPlan for ShuffleWriterExec {
         self.plan.schema()
     }
 
-    /// If [`shuffle_output_partitioning`] is none, then there's no need to do repartitioning.
-    /// Therefore, the partition is the same as its input plan's.
-    fn output_partitioning(&self) -> Partitioning {
-        self.shuffle_output_partitioning
-            .clone()
-            .unwrap_or_else(|| self.plan.output_partitioning())
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
+    fn properties(&self) -> &PlanProperties {
+        &self.cache
     }
 
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {

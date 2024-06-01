@@ -15,20 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use datafusion::error::DataFusionError;
 use datafusion::physical_plan::metrics::{MetricValue, MetricsSet};
 use std::convert::TryInto;
 
 use crate::error::BallistaError;
 
 use crate::serde::protobuf;
-use datafusion_proto::protobuf as datafusion_protobuf;
 
 use crate::serde::scheduler::{
     Action, ExecutorData, ExecutorMetadata, ExecutorSpecification, PartitionId,
     PartitionLocation, PartitionStats,
 };
-use datafusion::physical_plan::Partitioning;
 use protobuf::{action::ActionType, operator_metric, NamedCount, NamedGauge, NamedTime};
 
 impl TryInto<protobuf::Action> for Action {
@@ -95,7 +92,7 @@ impl Into<protobuf::PartitionStats> for PartitionStats {
         }
     }
 }
-
+/*
 pub fn hash_partitioning_to_proto(
     output_partitioning: Option<&Partitioning>,
 ) -> Result<Option<datafusion_protobuf::PhysicalHashRepartition>, BallistaError> {
@@ -115,6 +112,8 @@ pub fn hash_partitioning_to_proto(
         ))),
     }
 }
+
+ */
 
 impl TryInto<protobuf::OperatorMetric> for &MetricValue {
     type Error = BallistaError;
@@ -172,6 +171,7 @@ impl TryInto<protobuf::OperatorMetric> for &MetricValue {
                         .unwrap_or(0),
                 )),
             }),
+            &MetricValue::SpilledRows(_) => todo!(),
         }
     }
 }

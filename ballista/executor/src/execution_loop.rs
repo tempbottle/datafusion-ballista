@@ -44,6 +44,7 @@ use std::ops::Deref;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{sync::Arc, time::Duration};
+use datafusion::common::tree_node::{Transformed, TreeNode};
 use tonic::transport::Channel;
 
 pub async fn poll_loop<T: 'static + AsLogicalPlan, U: 'static + AsExecutionPlan>(
@@ -212,6 +213,12 @@ async fn run_received_task<T: 'static + AsLogicalPlan, U: 'static + AsExecutionP
                 codec.physical_extension_codec(),
             )
         })?;
+
+    let plan = plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
+        let children = plan.children().clone();
+        plan.with_new_children(children).map(Transformed::yes)
+    })?;
+    let plan = Arc::new(plan);
 
     let query_stage_exec = executor.execution_engine.create_query_stage_exec(
         job_id.clone(),

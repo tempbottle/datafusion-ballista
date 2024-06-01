@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
-use datafusion::physical_plan::{accept, ExecutionPlan, ExecutionPlanVisitor};
+use datafusion::physical_plan::{accept, ExecutionPlan, ExecutionPlanProperties, ExecutionPlanVisitor};
 use datafusion::prelude::SessionContext;
 use datafusion_proto::logical_plan::AsLogicalPlan;
 use log::{error, info, warn};

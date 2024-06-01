@@ -25,12 +25,9 @@ use std::{any::Any, pin::Pin};
 use datafusion::arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use datafusion::error::DataFusionError;
 use datafusion::execution::context::TaskContext;
-use datafusion::physical_plan::expressions::PhysicalSortExpr;
-use datafusion::physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, SendableRecordBatchStream,
-    Statistics,
-};
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, ExecutionPlanProperties, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
 use datafusion::{error::Result, physical_plan::RecordBatchStream};
+use datafusion::physical_expr::EquivalenceProperties;
 use futures::stream::SelectAll;
 use futures::Stream;
 
@@ -39,11 +36,31 @@ use futures::Stream;
 #[derive(Debug, Clone)]
 pub struct CollectExec {
     plan: Arc<dyn ExecutionPlan>,
+    cache: PlanProperties,
 }
 
 impl CollectExec {
     pub fn new(plan: Arc<dyn ExecutionPlan>) -> Self {
-        Self { plan }
+        let cache = Self::compute_properties(plan.clone().schema(), None, 1);
+        Self { plan, cache }
+    }
+
+    fn compute_properties(
+        schema: SchemaRef,
+        batch_produce: Option<usize>,
+        n_partitions: usize,
+    ) -> PlanProperties {
+        let eq_properties = EquivalenceProperties::new(schema);
+        let mode = if batch_produce.is_none() {
+            ExecutionMode::Unbounded
+        } else {
+            ExecutionMode::Bounded
+        };
+        PlanProperties::new(
+            eq_properties,
+            Partitioning::UnknownPartitioning(n_partitions),
+            mode,
+        )
     }
 }
 
@@ -70,12 +87,8 @@ impl ExecutionPlan for CollectExec {
         self.plan.schema()
     }
 
-    fn output_partitioning(&self) -> Partitioning {
-        Partitioning::UnknownPartitioning(1)
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
+    fn properties(&self) -> &PlanProperties {
+        &self.cache
     }
 
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {

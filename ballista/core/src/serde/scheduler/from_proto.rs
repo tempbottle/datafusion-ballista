@@ -324,6 +324,11 @@ pub fn get_task_definition<T: 'static + AsLogicalPlan, U: 'static + AsExecutionP
     let launch_time = task.launch_time;
     let task_id = task.task_id as usize;
     let session_id = task.session_id;
+    let plan = plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
+        let children = plan.children().clone();
+        plan.with_new_children(children).map(Transformed::yes)
+    })?;
+    let plan = Arc::new(plan);
 
     Ok(TaskDefinition {
         task_id,
@@ -402,7 +407,7 @@ pub fn get_task_definition_vec<
                 stage_id,
                 stage_attempt_num,
                 partition_id: task_id.partition_id as usize,
-                plan: reset_metrics_for_execution_plan(plan.clone())?,
+                plan: Arc::new(reset_metrics_for_execution_plan(plan.clone())?),
                 launch_time,
                 session_id: session_id.clone(),
                 props: props.clone(),
@@ -414,10 +419,10 @@ pub fn get_task_definition_vec<
 
 fn reset_metrics_for_execution_plan(
     plan: Arc<dyn ExecutionPlan>,
-) -> Result<Arc<dyn ExecutionPlan>, BallistaError> {
-    plan.transform(&|plan| {
+) -> Result<Transformed<Arc<dyn ExecutionPlan>>, BallistaError> {
+    plan.transform(&|plan:Arc<dyn ExecutionPlan>| {
         let children = plan.children().clone();
-        plan.with_new_children(children).map(Transformed::Yes)
+        plan.with_new_children(children).map(Transformed::yes)
     })
     .map_err(BallistaError::DataFusionError)
 }

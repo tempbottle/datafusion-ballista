@@ -24,6 +24,7 @@ use datafusion::arrow::array::{
 };
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::common::DataFusionError;
+use datafusion::common::tree_node::Transformed;
 use datafusion::execution::FunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, WindowUDF};
 use datafusion::physical_plan::ExecutionPlan;
@@ -284,7 +285,7 @@ pub struct TaskDefinition {
     pub stage_id: usize,
     pub stage_attempt_num: usize,
     pub partition_id: usize,
-    pub plan: Arc<dyn ExecutionPlan>,
+    pub plan: Arc<Transformed<Arc<dyn ExecutionPlan>>>,
     pub launch_time: u64,
     pub session_id: String,
     pub props: Arc<HashMap<String, String>>,

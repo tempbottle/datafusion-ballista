@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::collections::HashSet;
 use arrow_flight::flight_descriptor::DescriptorType;
 use arrow_flight::flight_service_server::FlightService;
 use arrow_flight::sql::server::{FlightSqlService, PeekableFlightDataStream};
@@ -65,11 +66,12 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::ipc::writer::{IpcDataGenerator, IpcWriteOptions};
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::common::DFSchemaRef;
-use datafusion::logical_expr::LogicalPlan;
+use datafusion::common::{DFSchemaRef};
+use datafusion::logical_expr::{LogicalPlan};
 use datafusion::prelude::SessionContext;
 use datafusion_proto::protobuf::{LogicalPlanNode, PhysicalPlanNode};
 use prost::Message;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::sleep;
 use tokio_stream::wrappers::ReceiverStream;
@@ -93,6 +95,22 @@ impl FlightSqlServiceImpl {
         }
     }
 
+    async fn inner_get_tables(&self, ctx: Arc<SessionContext>) -> HashSet<String> {
+        #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+        struct TableName {
+            pub table_name: Option<String>,
+        }
+
+        let df = ctx.sql("SHOW TABLES").await.unwrap();
+        let cols = df.select_columns(&["table_name"]).unwrap();
+        let cols = cols.collect().await.unwrap();
+        let rb = cols.get(0).unwrap();
+        let cols: Vec<TableName> = serde_arrow::from_record_batch(&rb).unwrap();
+        cols.iter().map(|s|s.clone().table_name.unwrap()).collect()
+    }
+
+
+
     #[allow(deprecated)]
     fn tables(&self, ctx: Arc<SessionContext>) -> Result<RecordBatch, ArrowError> {
         let schema = Arc::new(Schema::new(vec![
@@ -101,7 +119,8 @@ impl FlightSqlServiceImpl {
             Field::new("table_name", DataType::Utf8, false),
             Field::new("table_type", DataType::Utf8, false),
         ]));
-        let tables = ctx.tables()?; // resolved in #501
+        //let tables = ctx.tables()?; // resolved in #501
+        let tables = futures::executor::block_on(self.inner_get_tables(ctx));
         let names: Vec<_> = tables.iter().map(|it| Some(it.as_str())).collect();
         let types: Vec<_> = names.iter().map(|_| Some("TABLE")).collect();
         let cats: Vec<_> = names.iter().map(|_| None).collect();
@@ -298,6 +317,8 @@ impl FlightSqlServiceImpl {
             let fiep = FlightEndpoint {
                 ticket: Some(ticket),
                 location: vec![loc],
+                expiration_time: None,
+                app_metadata: Default::default(),
             };
             fieps.push(fiep);
         }
@@ -327,6 +348,8 @@ impl FlightSqlServiceImpl {
         let fiep = FlightEndpoint {
             ticket: Some(ticket),
             location: vec![loc],
+            expiration_time: None,
+            app_metadata: Default::default(),
         };
         let fieps = vec![fiep];
         Ok(fieps)
@@ -406,6 +429,7 @@ impl FlightSqlServiceImpl {
             total_records: num_rows,
             total_bytes: num_bytes,
             ordered: false,
+            app_metadata: Default::default(),
         };
         Response::new(info)
     }

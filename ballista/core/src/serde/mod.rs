@@ -38,6 +38,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::{convert::TryInto, io::Cursor};
+use datafusion_proto::physical_plan::to_proto::serialize_physical_expr;
 
 use crate::execution_plans::{
     ShuffleReaderExec, ShuffleWriterExec, UnresolvedShuffleExec,
@@ -141,11 +142,11 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
         match ballista_plan {
             PhysicalPlanType::ShuffleWriter(shuffle_writer) => {
                 let input = inputs[0].clone();
-
                 let shuffle_output_partitioning = parse_protobuf_hash_partitioning(
                     shuffle_writer.output_partitioning.as_ref(),
                     registry,
                     input.schema().as_ref(),
+                    self
                 )?;
 
                 Ok(Arc::new(ShuffleWriterExec::try_new(
@@ -181,12 +182,11 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
             }
             PhysicalPlanType::UnresolvedShuffle(unresolved_shuffle) => {
                 let schema = Arc::new(convert_required!(unresolved_shuffle.schema)?);
-                Ok(Arc::new(UnresolvedShuffleExec {
-                    stage_id: unresolved_shuffle.stage_id as usize,
-                    schema,
-                    output_partition_count: unresolved_shuffle.output_partition_count
-                        as usize,
-                }))
+                Ok(Arc::new(UnresolvedShuffleExec::new(
+                     unresolved_shuffle.stage_id as usize,
+                     schema,
+                     unresolved_shuffle.output_partition_count as usize,
+                )))
             }
         }
     }
@@ -204,7 +204,10 @@ impl PhysicalExtensionCodec for BallistaPhysicalExtensionCodec {
                     Some(datafusion_proto::protobuf::PhysicalHashRepartition {
                         hash_expr: exprs
                             .iter()
-                            .map(|expr| expr.clone().try_into())
+                            .map(|expr| {
+                                let expr1 = expr.clone();
+                                serialize_physical_expr(expr1.into(),self)
+                            })
                             .collect::<Result<Vec<_>, DataFusionError>>()?,
                         partition_count: *partition_count as u64,
                     })

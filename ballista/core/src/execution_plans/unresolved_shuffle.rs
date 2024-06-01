@@ -21,11 +21,8 @@ use std::sync::Arc;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::context::TaskContext;
-use datafusion::physical_plan::expressions::PhysicalSortExpr;
-use datafusion::physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, SendableRecordBatchStream,
-    Statistics,
-};
+use datafusion::physical_expr::EquivalenceProperties;
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionMode, ExecutionPlan, Partitioning, PlanProperties, SendableRecordBatchStream, Statistics};
 
 /// UnresolvedShuffleExec represents a dependency on the results of a ShuffleWriterExec node which hasn't computed yet.
 ///
@@ -41,6 +38,7 @@ pub struct UnresolvedShuffleExec {
 
     // The partition count this node will have once it is replaced with a ShuffleReaderExec
     pub output_partition_count: usize,
+    cache: PlanProperties,
 }
 
 impl UnresolvedShuffleExec {
@@ -50,11 +48,31 @@ impl UnresolvedShuffleExec {
         schema: SchemaRef,
         output_partition_count: usize,
     ) -> Self {
+        let cache = Self::compute_properties(schema.clone(), None, output_partition_count);
         Self {
             stage_id,
             schema,
             output_partition_count,
+            cache,
         }
+    }
+
+    fn compute_properties(
+        schema: SchemaRef,
+        batch_produce: Option<usize>,
+        n_partitions: usize,
+    ) -> PlanProperties {
+        let eq_properties = EquivalenceProperties::new(schema);
+        let mode = if batch_produce.is_none() {
+            ExecutionMode::Unbounded
+        } else {
+            ExecutionMode::Bounded
+        };
+        PlanProperties::new(
+            eq_properties,
+            Partitioning::UnknownPartitioning(n_partitions),
+            mode,
+        )
     }
 }
 
@@ -81,14 +99,8 @@ impl ExecutionPlan for UnresolvedShuffleExec {
         self.schema.clone()
     }
 
-    fn output_partitioning(&self) -> Partitioning {
-        // TODO the output partition is known and should be populated here!
-        // see https://github.com/apache/arrow-datafusion/issues/758
-        Partitioning::UnknownPartitioning(self.output_partition_count)
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
+    fn properties(&self) -> &PlanProperties {
+        &self.cache
     }
 
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
