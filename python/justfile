@@ -1,0 +1,2 @@
+br:
+    maturin build --release -i python3.11

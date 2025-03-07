@@ -1,6 +1,6 @@
-datafusion==43.1.0
+datafusion==45.0.0
 pyarrow
 pytest
-maturin==1.5.1
+maturin==1.7.0
 cloudpickle
 pandas

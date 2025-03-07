@@ -927,6 +927,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "md-5",
+ "parse_arg",
  "prost",
  "prost-types",
  "rand 0.9.0",
@@ -3654,9 +3655,9 @@ dependencies = [
 
 [[package]]
 name = "parse_arg"
-version = "0.1.4"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14248cc8eced350e20122a291613de29e4fa129ba2731818c4cdbb44fccd3e55"
+checksum = "0aa6995ee52a637a52261de3240eb3ffec0cfa24cb917cd03fc0365691ca24ae"
 
 [[package]]
 name = "paste"
