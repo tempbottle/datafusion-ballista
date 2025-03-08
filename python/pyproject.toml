@@ -61,4 +61,4 @@ include = [
 ]
 exclude = [".github/**", "ci/**", ".asf.yaml"]
 # Require Cargo.lock is up to date
-locked = false
+locked = true
