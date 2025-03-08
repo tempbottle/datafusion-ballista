@@ -36,7 +36,7 @@ pub struct BallistaFunctionRegistry {
 
 impl Default for BallistaFunctionRegistry {
     fn default() -> Self {
-        let scalar_functions:HashMap<_,_> = all_default_functions()
+        let scalar_functions: HashMap<_, _> = all_default_functions()
             .into_iter()
             .map(|f| (f.name().to_string(), f))
             .collect();
