@@ -24,6 +24,8 @@ use datafusion::logical_expr::planner::ExprPlanner;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, WindowUDF};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+//use datafusion::prelude::SessionContext;
+//use datafusion_functions_json;
 
 #[derive(Debug)]
 pub struct BallistaFunctionRegistry {
@@ -34,10 +36,20 @@ pub struct BallistaFunctionRegistry {
 
 impl Default for BallistaFunctionRegistry {
     fn default() -> Self {
-        let scalar_functions = all_default_functions()
+        let scalar_functions:HashMap<_,_> = all_default_functions()
             .into_iter()
             .map(|f| (f.name().to_string(), f))
             .collect();
+
+        /*
+        let mut tmp_ctx = SessionContext::new();
+        let _ = datafusion_functions_json::register_all(&mut tmp_ctx);
+        let state = tmp_ctx.state();
+        let json_udfs = state.scalar_functions();
+        for (key, value) in json_udfs.iter() {
+            scalar_functions.insert(key.clone(), value.clone());
+        }
+         */
 
         let aggregate_functions = all_default_aggregate_functions()
             .into_iter()

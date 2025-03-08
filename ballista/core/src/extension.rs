@@ -140,13 +140,15 @@ impl SessionStateExt for SessionState {
         );
 
         let runtime_env = RuntimeEnvBuilder::new().build()?;
-        let session_state = SessionStateBuilder::new()
+        let mut session_state = SessionStateBuilder::new()
             .with_default_features()
             .with_config(session_config)
             .with_runtime_env(Arc::new(runtime_env))
             .with_query_planner(Arc::new(planner))
             .with_session_id(session_id)
             .build();
+
+        datafusion_functions_json::register_all(&mut session_state)?;
 
         Ok(session_state)
     }
